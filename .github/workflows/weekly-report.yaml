@@ -11,6 +11,8 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    # Two comparisons take ~10 min; fail fast instead of the 6h default if a pull hangs.
+    timeout-minutes: 60
     env:
       # `if:` can't read secrets directly, so expose it as env to skip Slack when unset.
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

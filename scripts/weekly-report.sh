@@ -12,16 +12,13 @@ OUT_DIR=${OUT_DIR:-out}
 
 helm repo add kubecost https://kubecost.github.io/kubecost --force-update >/dev/null
 
-# Stable releases only (drop -rc.N), oldest first.
-versions=$(helm search repo kubecost/kubecost --versions -o json \
-  | jq -r '.[].version' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
-newest_patch() { grep "^$1\." <<<"$versions" | tail -n1; }
-
-read -r older_minor prior_minor latest_minor <<<"$(cut -d. -f1,2 <<<"$versions" | uniq | tail -n3 | xargs)"
-older=$(newest_patch "$older_minor")
-prior=$(newest_patch "$prior_minor")
-latest=$(newest_patch "$latest_minor")
+# Stable releases only (drop -rc.N), newest first; keep the first (newest) patch
+# of each minor, then the three newest minors.
+read -r latest prior older <<<"$(helm search repo kubecost/kubecost --versions -o json \
+  | jq -r '.[].version' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -rV \
+  | awk -F. '!seen[$1"."$2]++' | head -n3 | xargs)"
 echo "Versions: $older -> $prior -> $latest"
+[[ -n $older ]] || { echo "need releases from three minors; check the helm search output" >&2; exit 1; }
 
 rm -rf "$OUT_DIR" && mkdir -p "$OUT_DIR"
 
