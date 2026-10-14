@@ -191,7 +191,8 @@ func compareImageVulnerabilities(before, after *helmscanTypes.ContainerImage, co
 			if _, exists := comparison.UnchangedCVEs[ID]; !exists {
 				comparison.UnchangedCVEs[ID] = make(map[string]helmscanTypes.Vulnerability)
 			}
-			comparison.UnchangedCVEs[ID][before.ImageName] = vuln
+			// Use the new image's entry so the package column shows current versions
+			comparison.UnchangedCVEs[ID][before.ImageName] = after.Vulnerabilities[ID]
 		}
 	}
 

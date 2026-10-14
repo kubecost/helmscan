@@ -33,5 +33,6 @@ type ImageChange struct {
 type CVE struct {
 	ID             string   `json:"id"`
 	Severity       string   `json:"severity"`
+	Packages       []string `json:"packages,omitempty"`
 	AffectedImages []string `json:"affected_images,omitempty"`
 }

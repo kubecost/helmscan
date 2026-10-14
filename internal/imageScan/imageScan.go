@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	helmscanTypes "github.com/cliffcolvin/helmscan/internal/helmScanTypes"
@@ -132,9 +133,12 @@ func CompareScans(firstScan, secondScan helmscanTypes.ScanResult) *helmscanTypes
 func extractVulnerabilities(scan string) []helmscanTypes.Vulnerability {
 	var result struct {
 		Results []struct {
+			Type            string `json:"Type"`
 			Vulnerabilities []struct {
-				VulnerabilityID string `json:"VulnerabilityID"`
-				Severity        string `json:"Severity"`
+				VulnerabilityID  string `json:"VulnerabilityID"`
+				Severity         string `json:"Severity"`
+				PkgName          string `json:"PkgName"`
+				InstalledVersion string `json:"InstalledVersion"`
 			} `json:"Vulnerabilities"`
 		} `json:"Results"`
 	}
@@ -146,11 +150,23 @@ func extractVulnerabilities(scan string) []helmscanTypes.Vulnerability {
 	}
 
 	var vulns []helmscanTypes.Vulnerability
+	seen := make(map[string]int)
 	for _, res := range result.Results {
 		for _, vuln := range res.Vulnerabilities {
+			// res.Type is "gobinary" for Go binaries, "debian"/"alpine"/... for OS packages
+			pkg := fmt.Sprintf("%s %s (%s)", vuln.PkgName, vuln.InstalledVersion, res.Type)
+			// One CVE can hit several packages (e.g. Go stdlib and golang.org/x/net); list it once
+			if i, ok := seen[vuln.VulnerabilityID]; ok {
+				if !slices.Contains(vulns[i].Packages, pkg) {
+					vulns[i].Packages = append(vulns[i].Packages, pkg)
+				}
+				continue
+			}
+			seen[vuln.VulnerabilityID] = len(vulns)
 			vulns = append(vulns, helmscanTypes.Vulnerability{
 				ID:       vuln.VulnerabilityID,
 				Severity: strings.ToLower(vuln.Severity),
+				Packages: []string{pkg},
 			})
 		}
 	}

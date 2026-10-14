@@ -55,10 +55,10 @@ func (g *ImageReportGenerator) GetSeverityCounts() []reports.SeverityCount {
 
 func (g *ImageReportGenerator) GetAddedCVEs() map[string]map[string]helmscanTypes.Vulnerability {
 	result := make(map[string]map[string]helmscanTypes.Vulnerability)
-	for severity, vulns := range g.comparison.AddedCVEs {
-		result[severity] = make(map[string]helmscanTypes.Vulnerability)
+	// Keyed CVE ID -> image, the shape the shared report renderer expects
+	for _, vulns := range g.comparison.AddedCVEs {
 		for _, vuln := range vulns {
-			result[severity][vuln.ID] = vuln
+			result[vuln.ID] = map[string]helmscanTypes.Vulnerability{g.comparison.Image2.Image: vuln}
 		}
 	}
 	return result
@@ -66,10 +66,9 @@ func (g *ImageReportGenerator) GetAddedCVEs() map[string]map[string]helmscanType
 
 func (g *ImageReportGenerator) GetRemovedCVEs() map[string]map[string]helmscanTypes.Vulnerability {
 	result := make(map[string]map[string]helmscanTypes.Vulnerability)
-	for severity, vulns := range g.comparison.RemovedCVEs {
-		result[severity] = make(map[string]helmscanTypes.Vulnerability)
+	for _, vulns := range g.comparison.RemovedCVEs {
 		for _, vuln := range vulns {
-			result[severity][vuln.ID] = vuln
+			result[vuln.ID] = map[string]helmscanTypes.Vulnerability{g.comparison.Image1.Image: vuln}
 		}
 	}
 	return result
@@ -77,10 +76,9 @@ func (g *ImageReportGenerator) GetRemovedCVEs() map[string]map[string]helmscanTy
 
 func (g *ImageReportGenerator) GetUnchangedCVEs() map[string]map[string]helmscanTypes.Vulnerability {
 	result := make(map[string]map[string]helmscanTypes.Vulnerability)
-	for severity, vulns := range g.comparison.UnchangedCVEs {
-		result[severity] = make(map[string]helmscanTypes.Vulnerability)
+	for _, vulns := range g.comparison.UnchangedCVEs {
 		for _, vuln := range vulns {
-			result[severity][vuln.ID] = vuln
+			result[vuln.ID] = map[string]helmscanTypes.Vulnerability{g.comparison.Image2.Image: vuln}
 		}
 	}
 	return result

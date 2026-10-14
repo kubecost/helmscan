@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -80,6 +81,7 @@ func FormatSection(title string, content string) string {
 type SortableCVE struct {
 	ID       string
 	Severity string
+	Packages []string
 	Images   []string
 }
 
@@ -99,15 +101,19 @@ func ConvertToJSONCVEs(cves map[string]map[string]helmscanTypes.Vulnerability) [
 	var sortedCVEs SortableCVEList
 
 	for cveID, imageVulns := range cves {
-		var images []string
+		var images, pkgs []string
 		var severity string
 		for imageName, vuln := range imageVulns {
 			images = append(images, imageName)
 			severity = vuln.GetSeverity()
+			pkgs = append(pkgs, vuln.Packages...)
 		}
+		// Several images often ship the same package, e.g. one Go stdlib version
+		slices.Sort(pkgs)
 		sortedCVEs = append(sortedCVEs, SortableCVE{
 			ID:       cveID,
 			Severity: severity,
+			Packages: slices.Compact(pkgs),
 			Images:   images,
 		})
 	}
@@ -118,6 +124,7 @@ func ConvertToJSONCVEs(cves map[string]map[string]helmscanTypes.Vulnerability) [
 		jsonCVEs = append(jsonCVEs, CVE{
 			ID:             cve.ID,
 			Severity:       cve.Severity,
+			Packages:       cve.Packages,
 			AffectedImages: cve.Images,
 		})
 	}
@@ -176,6 +183,7 @@ func convertVulnerabilitiesToCVEs(vulns map[string]helmscanTypes.Vulnerability) 
 		cves = append(cves, CVE{
 			ID:       id,
 			Severity: vuln.GetSeverity(),
+			Packages: vuln.Packages,
 		})
 	}
 
@@ -222,11 +230,11 @@ func GenerateMarkdownSingleReport(report SingleScanReport, ignoreUnfixed bool) s
 				sb.WriteString("\n")
 			}
 			sb.WriteString(fmt.Sprintf("#### %s\n", strings.Title(cve.Severity)))
-			sb.WriteString("| CVE ID | Severity |\n")
-			sb.WriteString("|---------|----------|\n")
+			sb.WriteString("| CVE ID | Severity | Package |\n")
+			sb.WriteString("|---------|----------|---------|\n")
 			currentSeverity = cve.Severity
 		}
-		sb.WriteString(fmt.Sprintf("| %s | %s |\n", cve.ID, cve.Severity))
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", cve.ID, cve.Severity, strings.Join(cve.Packages, ", ")))
 	}
 
 	return sb.String()
