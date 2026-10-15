@@ -49,6 +49,7 @@ func (ci ContainerImage) String() string {
 type Vulnerability struct {
 	ID       string
 	Severity string
+	Packages []string
 }
 
 func (v Vulnerability) GetID() string {

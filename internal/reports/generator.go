@@ -3,7 +3,6 @@ package reports
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	helmscanTypes "github.com/cliffcolvin/helmscan/internal/helmScanTypes"
@@ -109,36 +108,19 @@ func formatVulnerabilitySection(cves map[string]map[string]helmscanTypes.Vulnera
 		return "No CVEs found.\n\n"
 	}
 
-	var sortedCVEs SortableCVEList
-	for cveID, imageVulns := range cves {
-		var images []string
-		var severity string
-		for imageName, vuln := range imageVulns {
-			images = append(images, imageName)
-			severity = vuln.GetSeverity()
-		}
-		sortedCVEs = append(sortedCVEs, SortableCVE{
-			ID:       cveID,
-			Severity: severity,
-			Images:   images,
-		})
-	}
-
-	sort.Sort(sortedCVEs)
-
 	var sb strings.Builder
 	currentSeverity := ""
-	for _, cve := range sortedCVEs {
+	for _, cve := range ConvertToJSONCVEs(cves) {
 		if cve.Severity != currentSeverity {
 			if currentSeverity != "" {
 				sb.WriteString("\n")
 			}
 			sb.WriteString(fmt.Sprintf("#### %s\n", strings.Title(cve.Severity)))
-			sb.WriteString("| CVE ID | Severity | Affected Images |\n")
-			sb.WriteString("|--------|----------|------------------|\n")
+			sb.WriteString("| CVE ID | Severity | Package | Affected Images |\n")
+			sb.WriteString("|--------|----------|---------|------------------|\n")
 			currentSeverity = cve.Severity
 		}
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", cve.ID, cve.Severity, strings.Join(cve.Images, ", ")))
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", cve.ID, cve.Severity, strings.Join(cve.Packages, ", "), strings.Join(cve.AffectedImages, ", ")))
 	}
 	return sb.String()
 }
