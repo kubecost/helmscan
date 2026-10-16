@@ -117,6 +117,7 @@ func formatVulnerabilitySection(cves map[string]map[string]helmscanTypes.Vulnera
 			images = append(images, imageName)
 			severity = vuln.GetSeverity()
 		}
+		sort.Strings(images)
 		sortedCVEs = append(sortedCVEs, SortableCVE{
 			ID:       cveID,
 			Severity: severity,

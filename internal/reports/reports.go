@@ -105,6 +105,7 @@ func ConvertToJSONCVEs(cves map[string]map[string]helmscanTypes.Vulnerability) [
 			images = append(images, imageName)
 			severity = vuln.GetSeverity()
 		}
+		sort.Strings(images)
 		sortedCVEs = append(sortedCVEs, SortableCVE{
 			ID:       cveID,
 			Severity: severity,
@@ -348,6 +349,7 @@ func sortAndFormatCVEs(cves map[string]map[string]helmscanTypes.Vulnerability) s
 			images = append(images, imageName)
 			severity = vuln.GetSeverity()
 		}
+		sort.Strings(images)
 		sortedCVEs = append(sortedCVEs, SortableCVE{
 			ID:       cveID,
 			Severity: severity,

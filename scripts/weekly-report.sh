@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Weekly CVE report for the Kubecost chart. Compares the newest patch of the
-# last three minors, e.g. 3.1.8 -> 3.2.4 and 3.2.4 -> 3.3.0.
+# last three minors, e.g. 3.1.8 -> 3.2.4 and 3.2.4 -> 3.3.1.
 # Writes to out/: report.md (both comparisons), one JSON per comparison,
 # and slack.json (latest comparison only).
 set -euo pipefail
@@ -37,9 +37,12 @@ compare "$older" "$prior"
 message=$(jq -r --arg title "*Weekly helmscan: kubecost $prior → $latest*" '
   $title,
   (.summary.severity_counts[] | "• \(.severity | ascii_upcase): \(.previous_count) → \(.current_count)"),
-  "New CVEs: \(.added_cves | length) • Fixed CVEs: \(.removed_cves | length)"
+  "New CVEs: \(.added_cves | length) • Fixed CVEs: \(.removed_cves | length)",
+  "<\($ENV.RUN_URL // "")|Full report>"
 ' "out/${prior}_to_${latest}.json")
 
-# Slack Workflow Builder triggers only accept flat string fields.
-jq -n --arg workflow "${GITHUB_WORKFLOW:-local}" --arg run_url "${RUN_URL:-}" --arg message "$message" \
+# Slack Workflow Builder triggers only accept flat string fields; these match
+# the org-level SLACK_FAILURE_WEBHOOK_URL_PASS trigger used across repos.
+jq -n --arg workflow "${GITHUB_WORKFLOW:-local}" --arg repo "${GITHUB_REPOSITORY:-local}" \
+  --arg runid "${GITHUB_RUN_ID:-}" --arg message "$message" \
   '$ARGS.named' > out/slack.json

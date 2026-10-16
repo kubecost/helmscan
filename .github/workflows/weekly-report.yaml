@@ -14,8 +14,6 @@ jobs:
     # Two comparisons take ~10 min; fail fast instead of the 6h default if a pull hangs.
     timeout-minutes: 60
     env:
-      # `if:` can't read secrets, so expose only whether it's set, not its value.
-      SLACK_ENABLED: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       # ghcr.io rate-limits the Trivy DB download on shared runners; use the ECR mirror.
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
@@ -37,26 +35,28 @@ jobs:
           name: helmscan-report
           path: out/
 
-      # Same pattern as integration-ci-cd / kubecost-cost-model: a Slack Workflow
-      # Builder webhook that takes the string fields workflow, run_url, message.
+      # SLACK_FAILURE_WEBHOOK_URL_PASS/_FAIL are org-level secrets shared across
+      # repos (e.g. cherry-pick-checker in kubecost and kubecost-cost-model).
+      # They are Slack Workflow Builder triggers taking the string fields
+      # workflow, repo, runid, message.
       - name: Send Slack summary
-        if: env.SLACK_ENABLED == 'true'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ secrets.SLACK_FAILURE_WEBHOOK_URL_PASS }}
           webhook-type: webhook-trigger
           payload-file-path: out/slack.json
           errors: true
 
       - name: Send Slack failure alert
-        if: failure() && env.SLACK_ENABLED == 'true'
+        if: failure()
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ secrets.SLACK_FAILURE_WEBHOOK_URL_FAIL }}
           webhook-type: webhook-trigger
           payload: |
             {
-              "workflow": "${{ github.workflow }}",
-              "run_url": "${{ env.RUN_URL }}",
-              "message": ":rotating_light: Weekly helmscan report failed. Check the run logs."
+              "workflow": ${{ toJSON(github.workflow) }},
+              "repo": ${{ toJSON(github.repository) }},
+              "runid": ${{ toJSON(github.run_id) }},
+              "message": ":rotating_light: Weekly helmscan report failed: <${{ env.RUN_URL }}|run logs>"
             }
