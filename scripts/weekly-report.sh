@@ -34,11 +34,12 @@ compare() {
 compare "$prior" "$latest"
 compare "$older" "$prior"
 
-message=$(jq -r --arg title "*Weekly helmscan: kubecost $prior → $latest*" '
+# The Slack workflow inserts this as plain text (no *bold* or <url|links>) and
+# already adds the workflow name, status and a run link, so send only the counts.
+message=$(jq -r --arg title "kubecost $prior → $latest" '
   $title,
   (.summary.severity_counts[] | "• \(.severity | ascii_upcase): \(.previous_count) → \(.current_count)"),
-  "New CVEs: \(.added_cves | length) • Fixed CVEs: \(.removed_cves | length)",
-  "<\($ENV.RUN_URL // "")|Full report>"
+  "• New CVEs: \(.added_cves | length), fixed: \(.removed_cves | length)"
 ' "out/${prior}_to_${latest}.json")
 
 # Slack Workflow Builder triggers only accept flat string fields; these match
