@@ -14,7 +14,6 @@ jobs:
     # Two comparisons take ~10 min; fail fast instead of the 6h default if a pull hangs.
     timeout-minutes: 60
     env:
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       # ghcr.io rate-limits the Trivy DB download on shared runners; use the ECR mirror.
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -58,5 +57,5 @@ jobs:
               "workflow": ${{ toJSON(github.workflow) }},
               "repo": ${{ toJSON(github.repository) }},
               "runid": ${{ toJSON(github.run_id) }},
-              "message": ":rotating_light: Weekly helmscan report failed: <${{ env.RUN_URL }}|run logs>"
+              "message": "Weekly helmscan report failed."
             }
