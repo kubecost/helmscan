@@ -33,10 +33,6 @@ func init() {
 	defer zapLogger.Sync()
 
 	logger = zapLogger.Sugar()
-
-	if err := imageScan.CheckTrivyInstallation(); err != nil {
-		logger.Fatalf("Trivy installation check failed: %v", err)
-	}
 }
 
 func main() {
@@ -47,8 +43,16 @@ func main() {
 	compare := flag.Bool("compare", false, "Enable comparison mode")
 	jsonOutput := flag.Bool("json", false, "Output in JSON format")
 	report := flag.Bool("report", false, "Generate a report file")
-	ignoreUnfixed := flag.Bool("ignore-unfixed", false, "Ignore unfixed vulnerabilities in Trivy scans")
+	ignoreUnfixed := flag.Bool("ignore-unfixed", false, "Ignore unfixed vulnerabilities")
+	flag.StringVar(&imageScan.Scanner, "scanner", "trivy", "Image scanner: trivy or grype")
 	flag.Parse()
+
+	if imageScan.Scanner != "trivy" && imageScan.Scanner != "grype" {
+		logger.Fatalf("Unknown --scanner %q; use trivy or grype", imageScan.Scanner)
+	}
+	if err := imageScan.CheckScannerInstallation(); err != nil {
+		logger.Fatalf("Scanner installation check failed: %v", err)
+	}
 
 	args := flag.Args()
 	if len(args) == 0 {

@@ -37,10 +37,6 @@ func init() {
 	logger = zapLogger.Sugar()
 
 	logger.Info("Application started")
-
-	if err := imageScan.CheckTrivyInstallation(); err != nil {
-		logger.Fatalf("Trivy installation check failed: %v", err)
-	}
 }
 
 func Scan(chartRef string, ignoreUnfixed bool) (helmscanTypes.HelmChart, error) {
