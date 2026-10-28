@@ -191,7 +191,7 @@ func extractGrypeVulnerabilities(scan string) []helmscanTypes.Vulnerability {
 	var vulns []helmscanTypes.Vulnerability
 	for _, match := range result.Matches {
 		severity := strings.ToLower(match.Vulnerability.Severity)
-		// Match Trivy's --severity filter: drop grype's "negligible" and "unknown".
+		// Reports only have Trivy's four levels; drop grype's "negligible" and "unknown".
 		switch severity {
 		case "critical", "high", "medium", "low":
 			vulns = append(vulns, helmscanTypes.Vulnerability{ID: match.Vulnerability.ID, Severity: severity})
