@@ -11,8 +11,8 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    # Two comparisons take ~10 min; fail fast instead of the 6h default if a pull hangs.
-    timeout-minutes: 60
+    # Two comparisons per scanner take ~12 min locally; fail fast instead of the 6h default if a pull hangs.
+    timeout-minutes: 90
     env:
       # ghcr.io rate-limits the Trivy DB download on shared runners; use the ECR mirror.
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
@@ -25,6 +25,16 @@ jobs:
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           cache: true
+      - name: Install grype
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          gh release download --repo anchore/grype --pattern '*_linux_amd64.tar.gz' --pattern '*_checksums.txt'
+          sha256sum --check --ignore-missing grype_*_checksums.txt
+          tar -xzf grype_*_linux_amd64.tar.gz grype
+          sudo install grype /usr/local/bin/
+          grype version
 
       - run: go build -o helmscan ./cmd/helmscan
       - run: scripts/weekly-report.sh
