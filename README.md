@@ -19,6 +19,7 @@ This will automatically install all required dependencies.
 ## Prerequisites
 The following tools are required and will be automatically installed via Homebrew:
 - [Trivy](https://github.com/aquasecurity/trivy) - for vulnerability scanning
+- [Grype](https://github.com/anchore/grype) - optional, for `--scanner grype` (`brew install grype`)
 - [Helm](https://helm.sh) - for chart operations
 - [yq](https://github.com/mikefarah/yq) - for YAML processing
 - [jq](https://stedolan.github.io/jq/) - for JSON processing
@@ -32,7 +33,7 @@ The tool supports two main operations:
 ### Single Artifact Scanning
 
 ```bash
-helmscan [--json] [--report] [--ignore-unfixed] <artifact>
+helmscan [--json] [--report] [--ignore-unfixed] [--scanner trivy|grype] <artifact>
 ```
 
 Examples:
@@ -45,12 +46,15 @@ helmscan --report myrepo/mychart@1.0.0
 
 # Scan showing only fixable vulnerabilities
 helmscan --report --ignore-unfixed myrepo/mychart@1.0.0
+
+# Scan with Grype, e.g. for Red Hat Hardened Images whose OS packages Trivy misses
+helmscan --scanner grype --report myrepo/mychart@1.0.0
 ```
 
 ### Artifact Comparison
 
 ```bash
-helmscan --compare [--json] [--report] [--ignore-unfixed] <artifact1> <artifact2>
+helmscan --compare [--json] [--report] [--ignore-unfixed] [--scanner trivy|grype] <artifact1> <artifact2>
 ```
 
 Examples:
@@ -69,7 +73,8 @@ helmscan --compare --report --ignore-unfixed myrepo/mychart@1.0.0 myrepo/mychart
 - `--compare`: Enable comparison mode (requires exactly 2 artifacts)
 - `--report`: Generate a report file (optional, saves to `working-files/scans/`)
 - `--json`: Output in JSON format (optional, defaults to markdown)
-- `--ignore-unfixed`: Ignore unfixed vulnerabilities in Trivy scans (optional, shows only CVEs with available fixes)
+- `--ignore-unfixed`: Ignore unfixed vulnerabilities (optional, shows only CVEs with available fixes)
+- `--scanner`: Image scanner, `trivy` (default) or `grype`
 
 ### Output
 
@@ -80,8 +85,8 @@ working-files/
     {scan-name}/
       scan_report.{md,json}
   tmp/
-    trivy_output/
-      {image}_trivy_output.json
+    {trivy,grype}_output/
+      {image}_{trivy,grype}_output.json
 ```
 
 

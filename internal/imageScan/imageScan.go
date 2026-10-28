@@ -33,13 +33,17 @@ func init() {
 	logger = zapLogger.Sugar()
 }
 
+// Scanner is the CLI that scans images: "trivy" (default) or "grype".
+var Scanner = "trivy"
+
 func ScanImage(imageName string, ignoreUnfixed bool) (helmscanTypes.ScanResult, error) {
-	if err := os.MkdirAll("working-files/tmp/trivy_output", 0755); err != nil {
+	outputDir := fmt.Sprintf("working-files/tmp/%s_output", Scanner)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return helmscanTypes.ScanResult{}, fmt.Errorf("failed to create working directory: %w", err)
 	}
 
 	safeFileName := reports.CreateSafeFileName(imageName)
-	outputFile := fmt.Sprintf("working-files/tmp/trivy_output/%s_trivy_output.json", safeFileName)
+	outputFile := fmt.Sprintf("%s/%s_%s_output.json", outputDir, safeFileName, Scanner)
 
 	args := []string{"image",
 		"-f", "json",
@@ -53,11 +57,17 @@ func ScanImage(imageName string, ignoreUnfixed bool) (helmscanTypes.ScanResult, 
 	}
 	
 	args = append(args, imageName)
-	cmd := exec.Command("trivy", args...)
+	if Scanner == "grype" {
+		args = []string{imageName, "-o", "json", "--file", outputFile}
+		if ignoreUnfixed {
+			args = append(args, "--only-fixed")
+		}
+	}
+	cmd := exec.Command(Scanner, args...)
 
 	combinedOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		return helmscanTypes.ScanResult{}, fmt.Errorf("error running command: %w\nOutput: %s", err, string(combinedOutput))
+		return helmscanTypes.ScanResult{}, fmt.Errorf("error running %s: %w\nOutput: %s", Scanner, err, string(combinedOutput))
 	}
 
 	jsonData, err := os.ReadFile(outputFile)
@@ -65,7 +75,12 @@ func ScanImage(imageName string, ignoreUnfixed bool) (helmscanTypes.ScanResult, 
 		return helmscanTypes.ScanResult{}, fmt.Errorf("error reading %s: %w", outputFile, err)
 	}
 
-	vulns := extractVulnerabilities(string(jsonData))
+	var vulns []helmscanTypes.Vulnerability
+	if Scanner == "grype" {
+		vulns = extractGrypeVulnerabilities(string(jsonData))
+	} else {
+		vulns = extractVulnerabilities(string(jsonData))
+	}
 
 	result := helmscanTypes.ScanResult{
 		Image:           imageName,
@@ -158,6 +173,34 @@ func extractVulnerabilities(scan string) []helmscanTypes.Vulnerability {
 	return vulns
 }
 
+func extractGrypeVulnerabilities(scan string) []helmscanTypes.Vulnerability {
+	var result struct {
+		Matches []struct {
+			Vulnerability struct {
+				ID       string `json:"id"`
+				Severity string `json:"severity"`
+			} `json:"vulnerability"`
+		} `json:"matches"`
+	}
+
+	if err := json.Unmarshal([]byte(scan), &result); err != nil {
+		fmt.Printf("Error parsing JSON: %v\n", err)
+		return nil
+	}
+
+	var vulns []helmscanTypes.Vulnerability
+	for _, match := range result.Matches {
+		severity := strings.ToLower(match.Vulnerability.Severity)
+		// Reports only have Trivy's four levels; drop grype's "negligible" and "unknown".
+		switch severity {
+		case "critical", "high", "medium", "low":
+			vulns = append(vulns, helmscanTypes.Vulnerability{ID: match.Vulnerability.ID, Severity: severity})
+		}
+	}
+
+	return vulns
+}
+
 func incrementSeverityCount(counts *helmscanTypes.SeverityCounts, severity string) {
 	switch severity {
 	case "low":
@@ -186,20 +229,21 @@ func difference(a, b []string) []string {
 	return diff
 }
 
-func CheckTrivyInstallation() error {
-	_, err := exec.LookPath("trivy")
+func CheckScannerInstallation() error {
+	_, err := exec.LookPath(Scanner)
 	if err != nil {
-		return fmt.Errorf("Trivy is not installed. Please install Trivy and ensure it's in your PATH")
+		return fmt.Errorf("%s is not installed. Please install %s and ensure it's in your PATH", Scanner, Scanner)
 	}
 
-	cmd := exec.Command("trivy", "--version")
+	cmd := exec.Command(Scanner, "--version")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("Failed to get Trivy version: %v", err)
+		return fmt.Errorf("Failed to get %s version: %v", Scanner, err)
 	}
 
-	version := strings.TrimSpace(strings.TrimPrefix(string(output), "Version: "))
-	fmt.Printf("Trivy version %s is installed.\n", version)
+	// trivy: "Version: 0.76.1\n..."; grype: "grype 0.121.0"
+	version := strings.SplitN(strings.TrimSpace(string(output)), "\n", 2)[0]
+	fmt.Printf("%s is installed: %s\n", Scanner, version)
 
 	return nil
 }
