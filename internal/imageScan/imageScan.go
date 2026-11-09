@@ -45,17 +45,21 @@ func ScanImage(imageName string, ignoreUnfixed bool) (helmscanTypes.ScanResult, 
 	safeFileName := reports.CreateSafeFileName(imageName)
 	outputFile := fmt.Sprintf("%s/%s_%s_output.json", outputDir, safeFileName, Scanner)
 
+	// Always pull from the registry. Trivy otherwise tries the local Docker/containerd/podman
+	// stores first and exports the image to a tar; for multi-arch OCI indexes (e.g. kubecost's
+	// modeling image) that export can miss blobs: "file blobs/sha256/... not found in tar".
 	args := []string{"image",
+		"--image-src", "remote",
 		"-f", "json",
 		"-o", outputFile,
 		"--severity", "HIGH,MEDIUM,LOW,CRITICAL",
 		"--pkg-types", "os,library",
 		"--scanners", "vuln,secret,misconfig"}
-	
+
 	if ignoreUnfixed {
 		args = append(args, "--ignore-unfixed")
 	}
-	
+
 	args = append(args, imageName)
 	if Scanner == "grype" {
 		args = []string{imageName, "-o", "json", "--file", outputFile}
