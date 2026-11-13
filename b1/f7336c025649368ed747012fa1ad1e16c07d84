@@ -1,0 +1,16 @@
+.github/workflows/release.yaml
+  h_cca6aa2712613d 20,23,29,34
+.github/workflows/weekly-report.yaml
+  h_cca6aa2712613d 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1f7336c025649368ed747012fa1ad1e16c07d84",
+  "prompts": {},
+  "humans": {
+    "h_cca6aa2712613d": {
+      "author": "jesse goodier <31039225+jessegoodier@users.noreply.github.com>"
+    }
+  }
+}
