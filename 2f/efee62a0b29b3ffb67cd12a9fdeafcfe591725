@@ -1,0 +1,40 @@
+scripts/kubecost-cves.py
+  s_c6813043fa4e08::t_b7a5c71088ad9b 131-132
+  s_c6813043fa4e08::t_263c4aa89a97c4 151-153
+  s_c6813043fa4e08::t_af19e14d85b1e3 142-145
+  s_c6813043fa4e08::t_e86de2a3486004 1-19,21-24,26-36,39,53-55,60,69-72,89-90,94-99,105-112,116-117,130,133-138,155-157,161,167-169,171-181,185-189,191-195
+  s_c6813043fa4e08::t_e147604f25cca6 127,149,154
+  s_c6813043fa4e08::t_f11e525a8e84f2 129
+  s_c6813043fa4e08::t_843da66b18ec83 40-52,56-59,63-68,73-88,91-93,100-104,113-115,139-141,146-147,158-160,162-166,182-184
+  s_c6813043fa4e08::t_14cd15405e40be 20,37-38,61-62,118-123,170,190
+  s_c6813043fa4e08::t_88fc3b4b0454f5 124,126,128
+  s_c6813043fa4e08::t_8fd3c121c349ea 25,125,148,150
+AGENTS.md
+  s_10ebf2cf3161a5::t_3761aea737a74a 1-6,8-21,40-54
+  s_c6813043fa4e08::t_2debbe83af6504 22-39
+  s_c6813043fa4e08::t_2449bc80aafb52 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2fefee62a0b29b3ffb67cd12a9fdeafcfe591725",
+  "prompts": {},
+  "sessions": {
+    "s_10ebf2cf3161a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c093-c573-7a53-9702-fce05267d012",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "jesse goodier <31039225+jessegoodier@users.noreply.github.com>"
+    },
+    "s_c6813043fa4e08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e3d4169-6898-4fba-8a52-e5e1d83294c3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "jesse goodier <31039225+jessegoodier@users.noreply.github.com>"
+    }
+  }
+}
