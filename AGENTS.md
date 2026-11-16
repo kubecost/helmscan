@@ -26,6 +26,8 @@ A PEP 723 script run with `uv` (dependencies are declared inline; only `rich`). 
 - `./scripts/kubecost-cves.py`: latest chart, Rich table.
 - `./scripts/kubecost-cves.py --version 3.3.1 -o json`: pinned chart version, JSON to stdout.
 - `./scripts/kubecost-cves.py --ignore-unfixed`: count only CVEs that have a fix.
+- `./scripts/kubecost-cves.py --nightly`: use the nightly chart repo (`https://kubecost.github.io/nightly-helm-chart`) instead of GA.
+- `--save DIR`: also write `DIR/{ga,nightly}.{json,md,slack.txt,svg}` (the SVG is the Rich table). `scripts/weekly-kubecost-cves.sh` uses this for GA + nightly with `--ignore-unfixed` and builds `out-cves/slack.json`; `.github/workflows/weekly-kubecost-cves.yaml` runs it Mondays and posts to Slack via the same org triggers as `weekly-report.yaml`.
 
 How it works:
 
@@ -51,4 +53,4 @@ History uses short, descriptive subjects such as `Add grype scanner, use it week
 
 ## Configuration & Agent Instructions
 
-Keep credentials and Slack webhook URLs out of commits. The weekly script deletes `out/` and `working-files/scans/` before generating reports. Verify guidance against 2026 tooling and use maintained libraries for new code. After significant work, end with concise outcome and validation bullets; label the last bullet **Things you should know** and state review items or that none remain.
+Keep credentials and Slack webhook URLs out of commits. The weekly scripts delete `out/` (and `out-cves/`) and `working-files/scans/` before generating reports. Verify guidance against 2026 tooling and use maintained libraries for new code. After significant work, end with concise outcome and validation bullets; label the last bullet **Things you should know** and state review items or that none remain.

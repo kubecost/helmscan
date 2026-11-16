@@ -13,14 +13,17 @@ packages) vs. language binaries/packages (gobinary, python-pkg, jar, ...).
 Unknown args are passed to `helm template`, e.g.:
     ./scripts/kubecost-cves.py --version 3.1.0
     ./scripts/kubecost-cves.py --version 3.1.0 -o json > cves.json
+    ./scripts/kubecost-cves.py --nightly   # latest nightly chart
 """
 
 import argparse
+import io
 import json
 import re
 import subprocess
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 from rich.box import Box
 from rich.console import Console
@@ -34,7 +37,11 @@ SEVERITIES = ("CRITICAL", "HIGH")
 TABLE_BOX = Box("┡━┯┩\n│ ││\n├─┼┤\n│ ││\n├─┼┤\n├─┼┤\n│ ││\n╰─┴╯\n")
 
 
-def chart_images(helm_args: list[str]) -> tuple[str, list[str]]:
+GA_REPO = "https://kubecost.github.io/kubecost"
+NIGHTLY_REPO = "https://kubecost.github.io/nightly-helm-chart"
+
+
+def chart_images(helm_args: list[str], repo: str) -> tuple[str, list[str]]:
     """Return (chart version, unique images) from the rendered chart."""
     rendered = subprocess.run(
         [
@@ -42,7 +49,7 @@ def chart_images(helm_args: list[str]) -> tuple[str, list[str]]:
             "template",
             "kubecost-ga",
             "--repo",
-            "https://kubecost.github.io/kubecost",
+            repo,
             "kubecost",
             *helm_args,
             "--skip-tests",
@@ -115,7 +122,9 @@ def summarize(report: dict) -> dict[str, dict[str, int]]:
     )
 
 
-def render(results: dict[str, dict], version: str, ignore_unfixed: bool) -> None:
+def render(
+    console: Console, results: dict[str, dict], version: str, ignore_unfixed: bool
+) -> None:
     scope = "showing fixable only" if ignore_unfixed else "showing all CVEs"
     title = (
         f"[bold white]Kubecost [bold cyan]{version}[/bold cyan] - "
@@ -154,6 +163,69 @@ def render(results: dict[str, dict], version: str, ignore_unfixed: bool) -> None
     console.print(table)
 
 
+def _icon(components: dict) -> str:
+    return "🔴" if any(sum(c.values()) for c in components.values()) else "🟢"
+
+
+def markdown(results: dict[str, dict], version: str, ignore_unfixed: bool) -> str:
+    scope = "fixable only" if ignore_unfixed else "all CVEs"
+    lines = [
+        f"### Kubecost {version} - trivy report ({scope})",
+        "",
+        "| Image | Component | CRITICAL | HIGH |",
+        "|---|---|--:|--:|",
+    ]
+    for image, components in results.items():
+        if "error" in components:
+            lines.append(f"| `{image}` | scan failed | - | - |")
+            continue
+        for i, (component, counts) in enumerate(components.items()):
+            first = f"{_icon(components)} `{image}`" if i == 0 else ""
+            lines.append(
+                f"| {first} | {component} | {counts['CRITICAL']} | {counts['HIGH']} |"
+            )
+    return "\n".join(lines) + "\n"
+
+
+def slack_text(results: dict[str, dict], version: str, ignore_unfixed: bool) -> str:
+    """Plain text: the Slack Workflow Builder trigger inserts it without any formatting."""
+    scope = "fixable only" if ignore_unfixed else "all CVEs"
+    lines = [f"Kubecost {version} - trivy report ({scope})"]
+    for image, components in results.items():
+        if "error" in components:
+            lines.append(f"⚠️ {image}: scan failed")
+            continue
+        detail = "; ".join(
+            f"{c}: {n['CRITICAL']} critical, {n['HIGH']} high"
+            for c, n in components.items()
+        )
+        lines.append(f"{_icon(components)} {image} ({detail})")
+    return "\n".join(lines) + "\n"
+
+
+def save(
+    out_dir: Path, results: dict, version: str, ignore_unfixed: bool, name: str
+) -> None:
+    """Write json, markdown, slack text and an SVG of the Rich table to out_dir/<name>.*"""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    base = out_dir / name
+    base.with_suffix(".json").write_text(json.dumps(results, indent=2))
+    base.with_suffix(".md").write_text(markdown(results, version, ignore_unfixed))
+    base.with_suffix(".slack.txt").write_text(
+        slack_text(results, version, ignore_unfixed)
+    )
+    # Forced colour so the SVG matches the terminal table even without a TTY (CI).
+    svg = Console(
+        record=True,
+        file=io.StringIO(),
+        force_terminal=True,
+        color_system="truecolor",
+        width=100,
+    )
+    render(svg, results, version, ignore_unfixed)
+    svg.save_svg(str(base.with_suffix(".svg")), title=f"Kubecost {version}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -164,10 +236,23 @@ def main() -> int:
         action="store_true",
         help="Only count CVEs with a fix available.",
     )
+    parser.add_argument(
+        "--nightly",
+        action="store_true",
+        help=f"Use the nightly chart repo ({NIGHTLY_REPO}) instead of GA.",
+    )
+    parser.add_argument(
+        "--save",
+        type=Path,
+        metavar="DIR",
+        help="Also write DIR/{ga,nightly}.{json,md,slack.txt,svg}.",
+    )
     args, helm_args = parser.parse_known_args()
 
     try:
-        version, images = chart_images(helm_args)
+        version, images = chart_images(
+            helm_args, NIGHTLY_REPO if args.nightly else GA_REPO
+        )
     except subprocess.CalledProcessError as exc:
         err_console.print(f"[bold red]helm/yq failed:[/bold red] {exc.stderr}")
         return 1
@@ -187,7 +272,15 @@ def main() -> int:
     if args.output == "json":
         print(json.dumps(results, indent=2))
     else:
-        render(results, version, args.ignore_unfixed)
+        render(console, results, version, args.ignore_unfixed)
+    if args.save:
+        save(
+            args.save,
+            results,
+            version,
+            args.ignore_unfixed,
+            "nightly" if args.nightly else "ga",
+        )
     return 1 if any("error" in r for r in results.values()) else 0
 
 
